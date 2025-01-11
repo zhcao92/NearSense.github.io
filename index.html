@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Proximity Game (Horizontal Version)</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #fdf0d5; /* Page background color */
+      font-family: sans-serif;
+      text-align: center;
+    }
+    #gameCanvas {
+      background: #fdf0d5;
+      border: 0px solid #ccc;
+      margin-top: 50px;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="gameCanvas" width="800" height="400"></canvas>
+
+<script>
+  // 1. Get the Canvas context
+  const canvas = document.getElementById("gameCanvas");
+  const ctx = canvas.getContext("2d");
+
+  // 2. Define the rectangles' properties (horizontal orientation)
+  const rectWidth = 100;   // Rectangle width
+  const rectHeight = 50;   // Rectangle height
+
+  // Left rectangle (static)
+  const leftRectX = 100;
+  const leftRectY = (canvas.height - rectHeight) / 2; // Vertically centered
+
+  // Right rectangle (mouse-controlled)
+  let rightRectX = 600;
+  let rightRectY = (canvas.height - rectHeight) / 2;  // Vertically centered
+
+  // Keep a gap so the right rectangle cannot overlap the left one
+  const gapBetweenRectangles = 20;
+
+  // 3. Listen for mousemove events
+  canvas.addEventListener("mousemove", (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    // Center the right rectangle on the mouse's X
+    rightRectX = mouseX - rectWidth / 2;
+
+    // Constraint: the right rectangle cannot go left beyond (leftRectX + rectWidth + gapBetweenRectangles)
+    if (rightRectX < leftRectX + rectWidth + gapBetweenRectangles) {
+      rightRectX = leftRectX + rectWidth + gapBetweenRectangles;
+    }
+  });
+
+  // 4. Bar value (0~100)
+  let barValue = 0;
+
+  // 5. Update function
+  function update() {
+    // Distance between the centers of the two rectangles
+    const leftCenterX  = leftRectX + rectWidth  / 2;
+    const rightCenterX = rightRectX + rectWidth / 2;
+    const distance = Math.abs(rightCenterX - leftCenterX);
+
+    // Max distance possible
+    const maxDistance = canvas.width - 2 * rectWidth - leftRectX;
+
+    // The closer the rectangles, the higher the barValue
+    barValue = 100 - (distance / maxDistance) * 100;
+    barValue = Math.max(0, Math.min(barValue, 100));
+
+    draw();
+    requestAnimationFrame(update);
+  }
+
+  // 6. Draw function
+  function draw() {
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // (A) Draw the left rectangle (fully opaque)
+    ctx.fillStyle = "#003049";
+    ctx.fillRect(leftRectX, leftRectY, rectWidth, rectHeight);
+
+    // (B) Calculate alpha for the right rectangle
+    // barValue (0~100) => alpha (0.1~1.0)
+    const alpha = 0.1 + (barValue / 100) * 0.9; // 0% -> 0.1, 100% -> 1.0
+
+    // (C) Draw the right rectangle (with dynamic alpha)
+    // #c1121f => RGB(193, 18, 31)
+    ctx.fillStyle = `rgba(193, 18, 31, ${alpha})`;
+    ctx.fillRect(rightRectX, rightRectY, rectWidth, rectHeight);
+
+    // (D) Draw a line at the bottom edge of the rectangles
+    const lineY = leftRectY + rectHeight;
+    ctx.beginPath();
+    ctx.moveTo(0, lineY);
+    ctx.lineTo(canvas.width, lineY);
+    ctx.strokeStyle = "#999";
+    ctx.stroke();
+
+    // (E) Draw the dynamic bar at the top
+    const barWidth = 300;
+    const barHeight = 20;
+    const barX = (canvas.width - barWidth) / 2;
+    const barY = 20;
+
+    // Border of the bar
+    ctx.strokeStyle = "#333";
+    ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+    // Fill the bar
+    const filledWidth = (barValue / 100) * barWidth;
+    ctx.fillStyle = "#669bbc";
+    ctx.fillRect(barX, barY, filledWidth, barHeight);
+
+    // Display "Spatial Sense"
+    ctx.fillStyle = "#000";
+    ctx.font = "14px Arial";
+    ctx.fillText(`Spatial Sense: ${barValue.toFixed(2)}%`, barX + 10, barY + 15);
+  }
+
+  // 7. Start the game loop
+  update();
+</script>
+</body>
+</html>
