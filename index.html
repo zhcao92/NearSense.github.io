@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Proximity Game (Horizontal Version)</title>
+  <title>Proximity Game (Horizontal Version, Rescaled)</title>
   <style>
     body {
       margin: 0;
@@ -31,47 +31,94 @@
   const rectWidth = 100;   // Rectangle width
   const rectHeight = 50;   // Rectangle height
 
-  // Left rectangle (static)
-  const leftRectX = 100;
-  const leftRectY = (canvas.height - rectHeight) / 2; // Vertically centered
+  // Right rectangle (static)
+  const rightRectX = 600;
+  const rightRectY = (canvas.height - rectHeight) / 2; // Vertically centered
 
-  // Right rectangle (mouse-controlled)
-  let rightRectX = 600;
-  let rightRectY = (canvas.height - rectHeight) / 2;  // Vertically centered
+  // Left rectangle (mouse-controlled)
+  let leftRectX = 100;
+  let leftRectY = (canvas.height - rectHeight) / 2; // Vertically centered
 
-  // Keep a gap so the right rectangle cannot overlap the left one
+  // Keep a gap so the left rectangle cannot overlap the right one
   const gapBetweenRectangles = 20;
 
   // 3. Listen for mousemove events
   canvas.addEventListener("mousemove", (event) => {
     const rect = canvas.getBoundingClientRect();
     const mouseX = event.clientX - rect.left;
-    // Center the right rectangle on the mouse's X
-    rightRectX = mouseX - rectWidth / 2;
 
-    // Constraint: the right rectangle cannot go left beyond (leftRectX + rectWidth + gapBetweenRectangles)
-    if (rightRectX < leftRectX + rectWidth + gapBetweenRectangles) {
-      rightRectX = leftRectX + rectWidth + gapBetweenRectangles;
+    // Center the left rectangle on the mouse's X
+    leftRectX = mouseX - rectWidth / 2;
+
+    // (A) Prevent going too far left
+    if (leftRectX < 0) {
+      leftRectX = 0;
+    }
+
+    // (B) Prevent going too far right (bumping into right rectangle + gap)
+    if (leftRectX > rightRectX - rectWidth - gapBetweenRectangles) {
+      leftRectX = rightRectX - rectWidth - gapBetweenRectangles;
     }
   });
 
-  // 4. Bar value (0~100)
-  let barValue = 0;
+  // 4. Bar values
+  //    We'll keep two bars:
+  //    (A) Distance sense (unchanged, old formula)
+  //    (B) Spatial sense (new formula with velocity)
+  let barValueDistance = 0; 
+  let barValueSpatial = 0;
+
+  // Velocity-related variables
+  let lastLeftCenterX = null;
+  let velocity = 0;
+
+  // Configurable parameter for velocity effect
+  let k = 0.05;
 
   // 5. Update function
   function update() {
-    // Distance between the centers of the two rectangles
-    const leftCenterX  = leftRectX + rectWidth  / 2;
+    // (A) Compute velocity
+    const leftCenterX = leftRectX + rectWidth / 2;
+    if (lastLeftCenterX === null) {
+      velocity = 0;
+    } else {
+      velocity = leftCenterX - lastLeftCenterX;
+    }
+    lastLeftCenterX = leftCenterX;
+
+    // (B) Compute distance-based factor
     const rightCenterX = rightRectX + rectWidth / 2;
-    const distance = Math.abs(rightCenterX - leftCenterX);
+    let rawDistance    = Math.abs(rightCenterX - leftCenterX);
 
-    // Max distance possible
-    const maxDistance = canvas.width - 2 * rectWidth - leftRectX;
+    // At closest possible position, centers are rectWidth + gapBetweenRectangles apart
+    const minDistance = rectWidth + gapBetweenRectangles; // e.g. 120
+    // At farthest possible position:
+    // canvas.width - 2 * rectWidth - gapBetweenRectangles
+    const maxDistance = canvas.width - 2 * rectWidth - gapBetweenRectangles; // e.g. 580
 
-    // The closer the rectangles, the higher the barValue
-    barValue = 100 - (distance / maxDistance) * 100;
-    barValue = Math.max(0, Math.min(barValue, 100));
+    // Clamp rawDistance
+    if (rawDistance < minDistance) {
+      rawDistance = minDistance;
+    } else if (rawDistance > maxDistance) {
+      rawDistance = maxDistance;
+    }
 
+    // Convert distance to 0–1 range
+    // minDistance => 0, maxDistance => 1
+    const normalized = (rawDistance - minDistance) / (maxDistance - minDistance);
+
+    // (C) Distance sense bar (unchanged)
+    barValueDistance = (1 - normalized) * 100;
+    barValueDistance = Math.max(0, Math.min(100, (1 - normalized) * 100));
+
+    // (D) Spatial sense bar (with velocity factor)
+    //     If you want to clamp to 0–100, uncomment the clamp lines
+    barValueSpatial = barValueDistance * (1 + k * velocity);
+    barValueSpatial = Math.max(0, Math.min(100, barValueDistance * (1 + k * velocity)));
+    // Optional clamp (uncomment if desired):
+    // barValueSpatial = Math.max(0, Math.min(100, barValueSpatial));
+
+    // (E) Draw & request next frame
     draw();
     requestAnimationFrame(update);
   }
@@ -81,20 +128,17 @@
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // (A) Draw the left rectangle (fully opaque)
+    // (A) Draw the right rectangle (fully opaque)
     ctx.fillStyle = "#003049";
-    ctx.fillRect(leftRectX, leftRectY, rectWidth, rectHeight);
-
-    // (B) Calculate alpha for the right rectangle
-    // barValue (0~100) => alpha (0.1~1.0)
-    const alpha = 0.1 + (barValue / 100) * 0.9; // 0% -> 0.1, 100% -> 1.0
-
-    // (C) Draw the right rectangle (with dynamic alpha)
-    // #c1121f => RGB(193, 18, 31)
-    ctx.fillStyle = `rgba(193, 18, 31, ${alpha})`;
     ctx.fillRect(rightRectX, rightRectY, rectWidth, rectHeight);
 
-    // (D) Draw a line at the bottom edge of the rectangles
+    // (B) Calculate alpha for the left rectangle
+    //     Let’s keep using the distance sense for alpha, just as an example
+    const alpha = 0.1 + (barValueDistance / 100) * 0.9; // 0% -> 0.1, 100% -> 1.0
+    ctx.fillStyle = `rgba(193, 18, 31, ${alpha})`;
+    ctx.fillRect(leftRectX, leftRectY, rectWidth, rectHeight);
+
+    // (C) Draw a line at the bottom edge of the rectangles
     const lineY = leftRectY + rectHeight;
     ctx.beginPath();
     ctx.moveTo(0, lineY);
@@ -102,25 +146,34 @@
     ctx.strokeStyle = "#999";
     ctx.stroke();
 
-    // (E) Draw the dynamic bar at the top
+    // (D) Bars
     const barWidth = 300;
     const barHeight = 20;
     const barX = (canvas.width - barWidth) / 2;
-    const barY = 20;
 
-    // Border of the bar
+    // --- 1) Distance Sense Bar ---
+    const firstBarY = 20;
     ctx.strokeStyle = "#333";
-    ctx.strokeRect(barX, barY, barWidth, barHeight);
+    ctx.strokeRect(barX, firstBarY, barWidth, barHeight);
 
-    // Fill the bar
-    const filledWidth = (barValue / 100) * barWidth;
+    const filledWidthDistance = (barValueDistance / 100) * barWidth;
     ctx.fillStyle = "#669bbc";
-    ctx.fillRect(barX, barY, filledWidth, barHeight);
+    ctx.fillRect(barX, firstBarY, filledWidthDistance, barHeight);
 
-    // Display "Spatial Sense"
     ctx.fillStyle = "#000";
     ctx.font = "14px Arial";
-    ctx.fillText(`Spatial Sense: ${barValue.toFixed(2)}%`, barX + 10, barY + 15);
+    ctx.fillText(`Distance Sense: ${barValueDistance.toFixed(2)}%`, barX + 10, firstBarY + 15);
+
+    // --- 2) Spatial Sense Bar ---
+    const secondBarY = firstBarY + barHeight + 10; // Add spacing
+    ctx.strokeRect(barX, secondBarY, barWidth, barHeight);
+
+    const filledWidthSpatial = (barValueSpatial / 100) * barWidth;
+    ctx.fillStyle = "#669bbc";
+    ctx.fillRect(barX, secondBarY, filledWidthSpatial, barHeight);
+
+    ctx.fillStyle = "#000";
+    ctx.fillText(`Spatial Sense   : ${barValueSpatial.toFixed(2)}%`, barX + 10, secondBarY + 15);
   }
 
   // 7. Start the game loop
