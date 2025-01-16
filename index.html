@@ -171,6 +171,14 @@
 
     ctx.fillStyle = "#000";
     ctx.fillText(`Spatial Sense: ${barValueSpatial.toFixed(2)}`, barX + 10, secondBarY + 15);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "20px Arial";
+    const text = "Ego";
+    const textWidth = ctx.measureText(text).width;
+    const textX = rightRectX + (rectWidth - textWidth) / 2;
+    const textY = rightRectY + (rectHeight + 20) / 2;
+    ctx.fillText(text, textX, textY);
   }
 
   // 7. Start the game loop
