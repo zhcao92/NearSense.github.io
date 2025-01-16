@@ -112,7 +112,7 @@
     barValueDistance = Math.max(0, Math.min(100, barValueDistance));
 
     // (D) Spatial sense bar (with velocity factor)
-    const barValueDistance_proj = (-1 / (1 + Math.exp(-0.005 * rawDistance)) + 1) * 2 * distance_scale - 1.15;
+    const barValueDistance_proj = (-1 / (1 + Math.exp(-0.005 * rawDistance)) + 1) * 2 * distance_scale - 1.16;
     barValueSpatial = barValueDistance_proj * (1 + velocity_scale * velocity);
     barValueSpatial = Math.max(0, Math.min(100, barValueSpatial));
 
