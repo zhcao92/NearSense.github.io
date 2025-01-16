@@ -74,8 +74,8 @@
   let velocity = 0;
 
   // Configurable parameter for velocity effect
-  let velocity_scale = 0.2;
-  let distance_scale = 141;
+  let velocity_scale = 0.1;
+  let distance_scale = 143;
 
   // 5. Update function
   function update() {
@@ -112,7 +112,7 @@
     barValueDistance = Math.max(0, Math.min(100, barValueDistance));
 
     // (D) Spatial sense bar (with velocity factor)
-    const barValueDistance_proj = (-1 / (1 + Math.exp(-0.005 * rawDistance)) + 1) * 2 * distance_scale;
+    const barValueDistance_proj = (-1 / (1 + Math.exp(-0.005 * rawDistance)) + 1) * 2 * distance_scale - 1.15;
     barValueSpatial = barValueDistance_proj * (1 + velocity_scale * velocity);
     barValueSpatial = Math.max(0, Math.min(100, barValueSpatial));
 
